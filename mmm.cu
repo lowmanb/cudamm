@@ -10,12 +10,12 @@ using namespace std;
 
 typedef struct {
     int dimension1;
-    int dimension2; 
+    int dimension2;
 } ArrayMetadata2D;
 
 // metadata variables describing dimensionalities of all data structures involved in the computation
 ArrayMetadata2D A_MD, B_MD, C_MD;
-// pointers for input and output arrays in the host memory  
+// pointers for input and output arrays in the host memory
 float *A, *B, *C, *C_CPU;
 // pointers for input and output arrays in the device memory (NVIDIA DRAM)
 float *A_GPU, *B_GPU, *C_GPU;
@@ -28,7 +28,7 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size);
 void copyMatricesToGPU();
 void copyResultFromGPU();
 void compareHostAndGpuOutput();
-void die(const char *error); 
+void die(const char *error);
 void check_error(cudaError e);
 
 //----------------------------------- CUDA function definitions -----------------------------------------
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
-    //start = clock();    
+    //start = clock();
     //computeCpuMMM();
     //end = clock();
     //double elapsed = (end - start) / (double) CLOCKS_PER_SEC;
@@ -98,7 +98,7 @@ void allocateAndInitializeAB() {
     for (int i = 0; i < A_MD.dimension1; i++) {
         for (int j = 0; j < A_MD.dimension2; j++) {
             int index = i * A_MD.dimension2 + j;
-            A[index] = (rand() % 1000) * 0.001; 
+            A[index] = (rand() % 1000) * 0.001;
         }
     }
 
@@ -107,7 +107,7 @@ void allocateAndInitializeAB() {
     for (int i = 0; i < B_MD.dimension1; i++) {
         for (int j = 0; j < B_MD.dimension2; j++) {
             int index = i * B_MD.dimension2 + j;
-            B[index] = (rand() % 1000) * 0.001; 
+            B[index] = (rand() % 1000) * 0.001;
         }
     }
 }
@@ -164,7 +164,7 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
     for (int i = 0; i < size; i++) {
-        sum += A[row * size + i] * B[i * size + col]; 
+        sum += A[row * size + i] * B[i * size + col];
     }
     C[row * size + col] = sum;
 }
