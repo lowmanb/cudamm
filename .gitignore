@@ -4,3 +4,16 @@
 *.ptx
 *.cubin
 *.fatbin
+
+# vim
+*.swp
+*.swo
+Session.vim
+
+# OS X
+.DS_Store
+
+# Executables
+*.out
+*.o
+
