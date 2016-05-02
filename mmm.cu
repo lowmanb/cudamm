@@ -52,11 +52,11 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
-    //start = clock();
-    //computeCpuMMM();
-    //end = clock();
-    //double elapsed = (end - start) / (double) CLOCKS_PER_SEC;
-    //printf("Computation time in the CPU: %f seconds\n", elapsed);
+    start = clock();
+    computeCpuMMM();
+    end = clock();
+    double elapsed = (end - start) / (double) CLOCKS_PER_SEC;
+    printf("Computation time in the CPU: %f seconds\n", elapsed);
 
     // MMM on the GPU
     start = clock();
@@ -82,8 +82,13 @@ int main(int argc, char **argv) {
     printf("Computation time in the GPU: %f seconds\n", compute / (double) CLOCKS_PER_SEC);
     printf("Total time in the GPU: %f seconds\n", (mem_transfer + compute) / (double) CLOCKS_PER_SEC);
 
-    //printf("Comparing answers...\n");
-    //compareHostAndGpuOutput();
+    for (int i=0; i < C_MD.dimension1; i++) {
+        printf("\n");
+        for (int j=0; j<C_MD.dimension2; j++)
+            printf("%.2f ", C_CPU[i*C_MD.dimension2+j]);
+    }
+    printf("Comparing answers...\n");
+    compareHostAndGpuOutput();
 
     return 0;
 }
@@ -94,7 +99,8 @@ void allocateAndInitializeAB() {
     size_t sizeofA = A_MD.dimension1 * A_MD.dimension2 * sizeof(float);
     A = (float*) malloc(sizeofA);
 
-    srand(time(NULL));
+    srand(5);
+    //srand(time(NULL));
     for (int i = 0; i < A_MD.dimension1; i++) {
         for (int j = 0; j < A_MD.dimension2; j++) {
             int index = i * A_MD.dimension2 + j;
@@ -163,8 +169,21 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     float sum = 0;
-    for (int i = 0; i < size; i++) {
-        sum += A[row * size + i] * B[i * size + col];
+    int CBLOCK_SIZE = THREADS_PER_BLOCK;
+    __shared__ float AA[THREADS_PER_BLOCK * THREADS_PER_BLOCK];
+    __shared__ float BB[THREADS_PER_BLOCK * THREADS_PER_BLOCK];
+    for (int kk = 0; kk < size; kk += CBLOCK_SIZE) {
+        AA[threadIdx.y * blockDim.y + threadIdx.x] = A[row * size + threadIdx.x + kk];
+        //AA[threadIdx.x * blockDim.y + threadIdx.y] = A[row * size + threadIdx.x + kk];
+        BB[threadIdx.y * blockDim.x + threadIdx.x] = B[(kk + threadIdx.y) * size + col];
+        __syncthreads();
+        for (int k = 0; k < blockDim.x; k++) {
+            //sum += AA[k * CBLOCK_SIZE + threadIdx.x] * BB[k * CBLOCK_SIZE + threadIdx.x];
+            sum += AA[threadIdx.y * CBLOCK_SIZE + k] * BB[k * CBLOCK_SIZE + threadIdx.x];
+            //sum += A[row * size + kk + k] * B[(kk + k) * size + col];
+            //(k + threadIdx.x % blockDim.x)    (k + threadIdx.y % blockDim.y)
+        }
+        __syncthreads();
     }
     C[row * size + col] = sum;
 }
@@ -177,7 +196,7 @@ void compareHostAndGpuOutput() {
     for (int i = 0; i < totalElements; i++) {
         if (fabs(C[i] - C_CPU[i]) > 0.01) {
             missmatchCount++;
-            printf("mismatch at index %i: %f\t%f\n", i, C[i], C_CPU[i]);
+            //printf("mismatch at index %i: %f\t%f\n", i, C[i], C_CPU[i]);
         }
     }
     if (missmatchCount > 0) {
