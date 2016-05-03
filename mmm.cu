@@ -178,7 +178,7 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
         BB[threadIdx.y * blockDim.x + threadIdx.x] = B[(kk + threadIdx.y) * size + col];
         __syncthreads();
         for (int k = 0; k < blockDim.x; k++) {
-            //sum += AA[k * CBLOCK_SIZE + threadIdx.x] * BB[k * CBLOCK_SIZE + threadIdx.x];
+            //sum += AA[k * CBLOCK_SIZE + threadIdx.y] * BB[k * CBLOCK_SIZE + threadIdx.x];
             sum += AA[threadIdx.y * CBLOCK_SIZE + k] * BB[k * CBLOCK_SIZE + threadIdx.x];
             //sum += A[row * size + kk + k] * B[(kk + k) * size + col];
             //(k + threadIdx.x % blockDim.x)    (k + threadIdx.y % blockDim.y)
