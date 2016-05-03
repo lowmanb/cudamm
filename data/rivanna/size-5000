@@ -1,0 +1,16 @@
+mmm
+Matrix A is 5000-by-5000
+Matrix B is 5000-by-5000
+Matrix C is 5000-by-5000
+Memory Transfer time in the GPU: 1.260000 seconds
+Computation time in the GPU: 1.640000 seconds
+Total time in the GPU: 2.900000 seconds
+
+yanMMM.o
+Allocation time: 2.17 seconds 
+Execution time: 2.34 seconds 
+
+cublasMMM.o
+Matrix A (5000, 5000) Matrix B (5000, 5000) 
+Allocation time: 2.49 seconds 
+Execution time: 0.32 seconds 
