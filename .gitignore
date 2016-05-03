@@ -14,6 +14,7 @@ Session.vim
 .DS_Store
 
 # Executables
+bin/*
 *.out
 *.o
 

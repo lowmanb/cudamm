@@ -5,19 +5,19 @@
 #SBATCH --part=training
 #SBATCH --output=output
 
-
-module load cuda
-
-nvcc -O3 -o mmm mmm.cu
+{
+    hostname
+    bin/rivanna/deviceQuery
+} > data/rivanna/hw-spec
 
 for size in `seq 1000 1000 10000`
 do
     {
         echo "mmm"
-        ./mmm $size
-        echo -e "\nyanMMM.o"
-        ./yanMMM.o $size
-        echo -e "\ncublasMMM.o"
-        ./cublasMMM.o $size
+        bin/rivanna/mmm $size
+        echo -e "\nyanMMM"
+        bin/rivanna/yanMMM $size
+        echo -e "\ncublasMMM"
+        bin/rivanna/cublasMMM $size
     } > data/rivanna/size-$size
 done

@@ -52,11 +52,13 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
+    /*
     start = clock();
     computeCpuMMM();
     end = clock();
     double elapsed = (end - start) / (double) CLOCKS_PER_SEC;
     printf("Computation time in the CPU: %f seconds\n", elapsed);
+    */
 
     // MMM on the GPU
     start = clock();
@@ -82,6 +84,7 @@ int main(int argc, char **argv) {
     printf("Computation time in the GPU: %f seconds\n", compute / (double) CLOCKS_PER_SEC);
     printf("Total time in the GPU: %f seconds\n", (mem_transfer + compute) / (double) CLOCKS_PER_SEC);
 
+    /*
     for (int i=0; i < C_MD.dimension1; i++) {
         printf("\n");
         for (int j=0; j<C_MD.dimension2; j++)
@@ -89,6 +92,7 @@ int main(int argc, char **argv) {
     }
     printf("Comparing answers...\n");
     compareHostAndGpuOutput();
+    */
 
     return 0;
 }
