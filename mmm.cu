@@ -45,6 +45,20 @@ int main(int argc, char **argv) {
     C_MD.dimension1 = A_MD.dimension1;
     C_MD.dimension2 = B_MD.dimension2;
 
+    // pad dimensions to next multiple of 32
+    if (A_MD.dimension1 % BLOCK_DIM != 0)
+        A_MD.dimension1 = ((int)A_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (A_MD.dimension2 % BLOCK_DIM != 0)
+        A_MD.dimension2 = ((int)A_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM; 
+    if (B_MD.dimension1 % BLOCK_DIM != 0)
+        B_MD.dimension1 = ((int)B_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (B_MD.dimension2 % BLOCK_DIM != 0)
+        B_MD.dimension2 = ((int)B_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (C_MD.dimension1 % BLOCK_DIM != 0)
+        C_MD.dimension1 = ((int)C_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (C_MD.dimension2 % BLOCK_DIM != 0)
+        C_MD.dimension2 = ((int)C_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM;
+
     printf("Matrix A is %d-by-%d\n", A_MD.dimension1, A_MD.dimension2);
     printf("Matrix B is %d-by-%d\n", B_MD.dimension1, B_MD.dimension2);
     printf("Matrix C is %d-by-%d\n", C_MD.dimension1, C_MD.dimension2);
