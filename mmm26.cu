@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     C_MD.dimension1 = A_MD.dimension1;
     C_MD.dimension2 = B_MD.dimension2;
 
-    // pad dimensions to next multiple of BLOCK_DIM
+    // pad dimensions to next multiple of 78
     if (A_MD.dimension1 % BLOCK_DIM != 0)
         A_MD.dimension1 = ((int)A_MD.dimension1/(3*BLOCK_DIM) + 1) * 3*BLOCK_DIM;
     if (A_MD.dimension2 % BLOCK_DIM != 0)
@@ -212,7 +212,7 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
     int i;
     int j;
     
-    // ^  15 local variables should fit into the 32 available registers
+    // ^  19 local variables should fit into the 32 available registers
 
     // as all matrix qudrants necessary for this block's computation will not 
     // fit into shared memory, the entire computation is blocked by kk
