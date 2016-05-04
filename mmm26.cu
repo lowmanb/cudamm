@@ -66,13 +66,11 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
-    /*
     start = clock();
     computeCpuMMM();
     endt = clock();
     double elapsed = (endt - start) / (double) CLOCKS_PER_SEC;
     printf("Computation time in the CPU: %f seconds\n", elapsed);
-    */
 
     // MMM on the GPU
     start = clock();
@@ -106,8 +104,8 @@ int main(int argc, char **argv) {
     }
     */
 
-    //printf("Comparing answers...\n");
-    //compareHostAndGpuOutput();
+    printf("Comparing answers...\n");
+    compareHostAndGpuOutput();
 
     return 0;
 }
@@ -188,7 +186,7 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
 
     // get the row and column of current thread
     // this row and column is relative to the top left
-    // tile in this block's matrix quadrant
+    // tile in this block's region
     int row = blockIdx.y * 3*BLOCK_DIM + threadIdx.y;
     int col = blockIdx.x * 3*BLOCK_DIM + threadIdx.x;
 
@@ -196,21 +194,29 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
     __shared__ float AA[3*BLOCK_DIM][3*BLOCK_DIM];
     __shared__ float BB[3*BLOCK_DIM][3*BLOCK_DIM];
 
-    // sums for each point (one per quadrant) this thread
-    // is responsible for
-    float sum[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    // sums for each point this thread responsible for
+    float sum0 = 0;
+    float sum1 = 0;
+    float sum2 = 0;
+    float sum3 = 0;
+    float sum4 = 0;
+    float sum5 = 0;
+    float sum6 = 0;
+    float sum7 = 0;
+    float sum8 = 0;
 
     int kk;
     int k;
     int i;
     int j;
     
-    // ^ I belive we have 8 + 9(array) local variables, so they all should fit in registers
+    // ^  15 local variables should fit into the 32 available registers
 
     // as all matrix qudrants necessary for this block's computation will not 
     // fit into shared memory, the entire computation is blocked by kk
     for (kk = 0; kk < size; kk += 3*BLOCK_DIM) {
 
+        // load the approprate data from memory
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 3; j++) {
                 AA[threadIdx.y + i*BLOCK_DIM][threadIdx.x + j*BLOCK_DIM] =
@@ -224,19 +230,32 @@ __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
         __syncthreads();
 
         // compute the partial dot products for all four quadrants
-        for (k = 0; k < 3*BLOCK_DIM; k++)
-            for (i = 0; i < 3; i++)
-                for (j = 0; j < 3; j++)
-                    sum[i][j] += AA[threadIdx.y + i*BLOCK_DIM][k] * BB[k][threadIdx.x + j*BLOCK_DIM]; 
+        for (k = 0; k < 3*BLOCK_DIM; k++) {
+            sum0 += AA[threadIdx.y][k] * BB[k][threadIdx.x]; 
+            sum1 += AA[threadIdx.y][k] * BB[k][threadIdx.x + BLOCK_DIM]; 
+            sum2 += AA[threadIdx.y][k] * BB[k][threadIdx.x + 2*BLOCK_DIM]; 
+            sum3 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k][threadIdx.x]; 
+            sum4 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k][threadIdx.x + BLOCK_DIM]; 
+            sum5 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k][threadIdx.x + 2*BLOCK_DIM]; 
+            sum6 += AA[threadIdx.y + 2*BLOCK_DIM][k] * BB[k][threadIdx.x]; 
+            sum7 += AA[threadIdx.y + 2*BLOCK_DIM][k] * BB[k][threadIdx.x + BLOCK_DIM]; 
+            sum8 += AA[threadIdx.y + 2*BLOCK_DIM][k] * BB[k][threadIdx.x + 2*BLOCK_DIM]; 
+        }
 
         // sync is needed before writing to AA & BB
         __syncthreads();
     }
 
     // write the final dot products to C
-    for (i = 0; i < 3; i++)
-        for (j = 0; j < 3; j++)
-            C[(row + i*BLOCK_DIM) * size + col + j*BLOCK_DIM] = sum[i][j];
+    C[row * size + col] = sum0;
+    C[row * size + col + BLOCK_DIM] = sum1;
+    C[row * size + col + 2*BLOCK_DIM] = sum2;
+    C[(row + BLOCK_DIM) * size + col] = sum3;
+    C[(row + BLOCK_DIM) * size + col + BLOCK_DIM] = sum4;
+    C[(row + BLOCK_DIM) * size + col + 2*BLOCK_DIM] = sum5;
+    C[(row + 2*BLOCK_DIM) * size + col] = sum6;
+    C[(row + 2*BLOCK_DIM) * size + col + BLOCK_DIM] = sum7;
+    C[(row + 2*BLOCK_DIM) * size + col + 2*BLOCK_DIM] = sum8;
 
 }
 
