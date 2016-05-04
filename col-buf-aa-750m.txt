@@ -1,0 +1,5 @@
+Total time in the GPU: 5.842282 seconds
+Total time in the GPU: 5.642456 seconds
+Total time in the GPU: 5.647416 seconds
+Total time in the GPU: 5.646869 seconds
+Total time in the GPU: 5.655395 seconds
