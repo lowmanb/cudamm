@@ -32,8 +32,8 @@ void die(const char *error);
 void check_error(cudaError e);
 
 //----------------------------------- CUDA function definitions -----------------------------------------
-#define THREADS_PER_BLOCK 20
-clock_t start, end, mem_transfer, compute;
+#define BLOCK_DIM 32
+clock_t start, endt, mem_transfer, compute;
 
 //-------------------------------------------------------------------------------------------------------
 int main(int argc, char **argv) {
@@ -52,34 +52,32 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
-    /*
     start = clock();
     computeCpuMMM();
-    end = clock();
-    double elapsed = (end - start) / (double) CLOCKS_PER_SEC;
+    endt = clock();
+    double elapsed = (endt - start) / (double) CLOCKS_PER_SEC;
     printf("Computation time in the CPU: %f seconds\n", elapsed);
-    */
 
     // MMM on the GPU
     start = clock();
     copyMatricesToGPU();
-    end = clock();
-    mem_transfer = end - start;
+    endt = clock();
+    mem_transfer = endt - start;
 
-    dim3 blocks(A_MD.dimension1/THREADS_PER_BLOCK, A_MD.dimension1/THREADS_PER_BLOCK);
-    dim3 threads(THREADS_PER_BLOCK, THREADS_PER_BLOCK);
+    dim3 blocks(A_MD.dimension1/BLOCK_DIM, A_MD.dimension1/BLOCK_DIM);
+    dim3 threads(BLOCK_DIM, BLOCK_DIM);
 
     start = clock();
     computeGPUMMM<<<blocks, threads>>>(A_GPU, B_GPU, C_GPU, A_MD.dimension1);
     cudaThreadSynchronize();
-    end = clock();
-    compute = end - start;
+    endt = clock();
+    compute = endt - start;
 
     check_error(cudaGetLastError());
     start = clock();
     copyResultFromGPU();
-    end = clock();
-    mem_transfer += end - start;
+    endt = clock();
+    mem_transfer += endt - start;
     printf("Memory Transfer time in the GPU: %f seconds\n", mem_transfer / (double) CLOCKS_PER_SEC);
     printf("Computation time in the GPU: %f seconds\n", compute / (double) CLOCKS_PER_SEC);
     printf("Total time in the GPU: %f seconds\n", (mem_transfer + compute) / (double) CLOCKS_PER_SEC);
@@ -90,9 +88,10 @@ int main(int argc, char **argv) {
         for (int j=0; j<C_MD.dimension2; j++)
             printf("%.2f ", C_CPU[i*C_MD.dimension2+j]);
     }
+    */
+
     printf("Comparing answers...\n");
     compareHostAndGpuOutput();
-    */
 
     return 0;
 }
@@ -170,23 +169,20 @@ void computeCpuMMM() {
 }
 
 __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
+
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    __shared__ float AA[BLOCK_DIM][BLOCK_DIM];
+    __shared__ float BB[BLOCK_DIM][BLOCK_DIM];
+
     float sum = 0;
-    int CBLOCK_SIZE = THREADS_PER_BLOCK;
-    __shared__ float AA[THREADS_PER_BLOCK * THREADS_PER_BLOCK];
-    __shared__ float BB[THREADS_PER_BLOCK * THREADS_PER_BLOCK];
-    for (int kk = 0; kk < size; kk += CBLOCK_SIZE) {
-        AA[threadIdx.y * blockDim.y + threadIdx.x] = A[row * size + threadIdx.x + kk];
-        //AA[threadIdx.x * blockDim.y + threadIdx.y] = A[row * size + threadIdx.x + kk];
-        BB[threadIdx.y * blockDim.x + threadIdx.x] = B[(kk + threadIdx.y) * size + col];
+    for (int kk = 0; kk < size; kk += BLOCK_DIM) {
+        AA[threadIdx.y][threadIdx.x] = A[row * size + threadIdx.x + kk];
+        BB[threadIdx.y][threadIdx.x] = B[(kk + threadIdx.y) * size + col];
         __syncthreads();
-        for (int k = 0; k < blockDim.x; k++) {
-            //sum += AA[k * CBLOCK_SIZE + threadIdx.y] * BB[k * CBLOCK_SIZE + threadIdx.x];
-            sum += AA[threadIdx.y * CBLOCK_SIZE + k] * BB[k * CBLOCK_SIZE + threadIdx.x];
-            //sum += A[row * size + kk + k] * B[(kk + k) * size + col];
-            //(k + threadIdx.x % blockDim.x)    (k + threadIdx.y % blockDim.y)
-        }
+        for (int k = 0; k < BLOCK_DIM; k++)
+            sum += AA[threadIdx.y][k] * BB[k][threadIdx.x]; 
         __syncthreads();
     }
     C[row * size + col] = sum;
