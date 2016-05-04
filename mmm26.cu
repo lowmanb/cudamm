@@ -66,11 +66,13 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
+    /*
     start = clock();
     computeCpuMMM();
     endt = clock();
     double elapsed = (endt - start) / (double) CLOCKS_PER_SEC;
     printf("Computation time in the CPU: %f seconds\n", elapsed);
+    */
 
     // MMM on the GPU
     start = clock();
@@ -104,8 +106,8 @@ int main(int argc, char **argv) {
     }
     */
 
-    printf("Comparing answers...\n");
-    compareHostAndGpuOutput();
+    //printf("Comparing answers...\n");
+    //compareHostAndGpuOutput();
 
     return 0;
 }
