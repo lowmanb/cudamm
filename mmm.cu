@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     endt = clock();
     mem_transfer = endt - start;
 
-    dim3 blocks(A_MD.dimension1/BLOCK_DIM, A_MD.dimension1/BLOCK_DIM);
+    dim3 blocks(A_MD.dimension1/(2*BLOCK_DIM), A_MD.dimension1/(2*BLOCK_DIM));
     dim3 threads(BLOCK_DIM, BLOCK_DIM);
 
     start = clock();
@@ -184,57 +184,39 @@ void computeCpuMMM() {
 
 __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
 
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * (2*BLOCK_DIM) + threadIdx.y;
+    int col = blockIdx.x * (2*BLOCK_DIM) + threadIdx.x;
 
     __shared__ float AA[2*BLOCK_DIM][2*BLOCK_DIM];
     __shared__ float BB[2*BLOCK_DIM][2*BLOCK_DIM];
 
-    float sum = 0;
+    float sum0 = 0;
+    float sum1 = 0;
+    float sum2 = 0;
+    float sum3 = 0;
 
-    for (int kk = 0; kk < size; kk += BLOCK_DIM) {
+    for (int kk = 0; kk < size; kk += BLOCK_DIM * 2) {
         AA[threadIdx.y][threadIdx.x] = A[row * size + threadIdx.x + kk];
         BB[threadIdx.y][threadIdx.x] = B[(kk + threadIdx.y) * size + col];
-        __syncthreads();
-        for (int k = 0; k < BLOCK_DIM; k++)
-            sum += AA[threadIdx.y][k] * BB[k][threadIdx.x]; 
-        __syncthreads();
-    }
-    C[row * size + col] = sum;
-
-    sum = 0;
-    for (int kk = 0; kk < size; kk += BLOCK_DIM) {
         AA[threadIdx.y][threadIdx.x + BLOCK_DIM] = A[row * size + threadIdx.x + BLOCK_DIM + kk];
         BB[threadIdx.y][threadIdx.x + BLOCK_DIM] = B[(kk + threadIdx.y) * size + col + BLOCK_DIM];
-        __syncthreads();
-        for (int k = 0; k < BLOCK_DIM; k++)
-            sum += AA[threadIdx.y][k + BLOCK_DIM] * BB[k][BLOCK_DIM + threadIdx.x]; 
-        __syncthreads();
-    }
-    C[row * size + col + BLOCK_DIM] = sum;
-
-    sum = 0;
-    for (int kk = 0; kk < size; kk += BLOCK_DIM) {
         AA[threadIdx.y + BLOCK_DIM][threadIdx.x] = A[(row + BLOCK_DIM) * size + threadIdx.x + kk];
         BB[threadIdx.y + BLOCK_DIM][threadIdx.x] = B[(kk + threadIdx.y + BLOCK_DIM) * size + col];
-        __syncthreads();
-        for (int k = 0; k < BLOCK_DIM; k++)
-            sum += AA[threadIdx.y + BLOCK_DIM][k] * BB[k + BLOCK_DIM][threadIdx.x]; 
-        __syncthreads();
-    }
-    C[(row + BLOCK_DIM) * size + col] = sum;
-
-    sum = 0;
-    for (int kk = 0; kk < size; kk += BLOCK_DIM) {
         AA[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = A[row * size + threadIdx.x + kk + BLOCK_DIM];
         BB[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = B[(kk + threadIdx.y) * size + col + BLOCK_DIM];
         __syncthreads();
-        for (int k = 0; k < BLOCK_DIM; k++)
-            sum += AA[threadIdx.y + BLOCK_DIM][k + BLOCK_DIM] * BB[k + BLOCK_DIM][threadIdx.x + BLOCK_DIM]; 
+        for (int k = 0; k < 2*BLOCK_DIM; k++) {
+            sum0 += AA[threadIdx.y][k] * BB[k][threadIdx.x]; 
+            sum1 += AA[threadIdx.y][k + BLOCK_DIM] * BB[k][BLOCK_DIM + threadIdx.x]; 
+            sum2 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k + BLOCK_DIM][threadIdx.x]; 
+            sum3 += AA[threadIdx.y + BLOCK_DIM][k + BLOCK_DIM] * BB[k + BLOCK_DIM][threadIdx.x + BLOCK_DIM]; 
+        }
         __syncthreads();
     }
-
-    C[(row + BLOCK_DIM) * size + col + BLOCK_DIM] = sum;
+    C[row * size + col] = sum0;
+    C[row * size + col + BLOCK_DIM] = sum1;
+//    C[(row + BLOCK_DIM) * size + col] = sum2;
+//    C[(row + BLOCK_DIM) * size + col + BLOCK_DIM] = sum3;
 }
 
 // function to determine if the GPU computation is done correctly by comparing the output from the GPU with that
