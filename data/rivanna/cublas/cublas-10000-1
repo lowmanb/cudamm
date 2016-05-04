@@ -1,0 +1,3 @@
+Matrix A (10000, 10000) Matrix B (10000, 10000) 
+Allocation time: 6.43 seconds 
+Execution time: 1.02 seconds 
