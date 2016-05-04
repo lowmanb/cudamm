@@ -66,11 +66,13 @@ int main(int argc, char **argv) {
     allocateAndInitializeAB();
 
     // matrix matrix multiplication in the CPU
+    /*
     start = clock();
     computeCpuMMM();
     endt = clock();
     double elapsed = (endt - start) / (double) CLOCKS_PER_SEC;
     printf("Computation time in the CPU: %f seconds\n", elapsed);
+    */
 
     // MMM on the GPU
     start = clock();
@@ -98,14 +100,14 @@ int main(int argc, char **argv) {
 
     /*
     for (int i=0; i < C_MD.dimension1; i++) {
-        printf("\n");
+       printf("\n");
         for (int j=0; j<C_MD.dimension2; j++)
             printf("%.2f ", C_CPU[i*C_MD.dimension2+j]);
     }
     */
 
-    printf("Comparing answers...\n");
-    compareHostAndGpuOutput();
+    //printf("Comparing answers...\n");
+    //compareHostAndGpuOutput();
 
     return 0;
 }
@@ -184,39 +186,63 @@ void computeCpuMMM() {
 
 __global__ void computeGPUMMM(float* A, float* B, float* C, int size) {
 
-    int row = blockIdx.y * (2*BLOCK_DIM) + threadIdx.y;
-    int col = blockIdx.x * (2*BLOCK_DIM) + threadIdx.x;
+    // get the row and column of current thread
+    // this row and column is relative to the top left
+    // tile in this block's matrix quadrant
+    int row = blockIdx.y * 2*BLOCK_DIM + threadIdx.y;
+    int col = blockIdx.x * 2*BLOCK_DIM + threadIdx.x;
 
+    // allocate this blocks quadrant (4X the block area)
     __shared__ float AA[2*BLOCK_DIM][2*BLOCK_DIM];
     __shared__ float BB[2*BLOCK_DIM][2*BLOCK_DIM];
 
+    // sums for each point (one per quadrant) this thread
+    // is responsible for
     float sum0 = 0;
     float sum1 = 0;
     float sum2 = 0;
     float sum3 = 0;
 
-    for (int kk = 0; kk < size; kk += BLOCK_DIM * 2) {
-        AA[threadIdx.y][threadIdx.x] = A[row * size + threadIdx.x + kk];
-        BB[threadIdx.y][threadIdx.x] = B[(kk + threadIdx.y) * size + col];
-        AA[threadIdx.y][threadIdx.x + BLOCK_DIM] = A[row * size + threadIdx.x + BLOCK_DIM + kk];
-        BB[threadIdx.y][threadIdx.x + BLOCK_DIM] = B[(kk + threadIdx.y) * size + col + BLOCK_DIM];
-        AA[threadIdx.y + BLOCK_DIM][threadIdx.x] = A[(row + BLOCK_DIM) * size + threadIdx.x + kk];
-        BB[threadIdx.y + BLOCK_DIM][threadIdx.x] = B[(kk + threadIdx.y + BLOCK_DIM) * size + col];
-        AA[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = A[row * size + threadIdx.x + kk + BLOCK_DIM];
-        BB[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = B[(kk + threadIdx.y) * size + col + BLOCK_DIM];
+    // as all matrix qudrants necessary for this block's computation will not 
+    // fit into shared memory, the entire computation is blocked by kk
+    int kk;
+    int k;
+    for (kk = 0; kk < size; kk += 2*BLOCK_DIM) {
+
+        // get top left quadrant data
+        AA[threadIdx.y][threadIdx.x]                         = A[row * size + threadIdx.x + kk];
+        BB[threadIdx.y][threadIdx.x]                         = B[(kk + threadIdx.y) * size + col];
+        // get top right quadrant data
+        AA[threadIdx.y][threadIdx.x + BLOCK_DIM]             = A[row * size + threadIdx.x + BLOCK_DIM + kk];
+        BB[threadIdx.y][threadIdx.x + BLOCK_DIM]             = B[(kk + threadIdx.y) * size + col + BLOCK_DIM];
+        // get bottom left quadrant data
+        AA[threadIdx.y + BLOCK_DIM][threadIdx.x]             = A[(row + BLOCK_DIM) * size + threadIdx.x + kk];
+        BB[threadIdx.y + BLOCK_DIM][threadIdx.x]             = B[(kk + threadIdx.y + BLOCK_DIM) * size + col];
+        // get bottom right quadrant data
+        AA[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = A[(row + BLOCK_DIM) * size + threadIdx.x + kk + BLOCK_DIM];
+        BB[threadIdx.y + BLOCK_DIM][threadIdx.x + BLOCK_DIM] = B[(kk + threadIdx.y + BLOCK_DIM) * size + col + BLOCK_DIM];
+
+        // since we stride across memory written by different warps, a sync is needed
         __syncthreads();
-        for (int k = 0; k < 2*BLOCK_DIM; k++) {
+
+        // compute the partial dot products for all four quadrants
+        for (k = 0; k < 2*BLOCK_DIM; k++) {
             sum0 += AA[threadIdx.y][k] * BB[k][threadIdx.x]; 
-            sum1 += AA[threadIdx.y][k + BLOCK_DIM] * BB[k][BLOCK_DIM + threadIdx.x]; 
-            sum2 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k + BLOCK_DIM][threadIdx.x]; 
-            sum3 += AA[threadIdx.y + BLOCK_DIM][k + BLOCK_DIM] * BB[k + BLOCK_DIM][threadIdx.x + BLOCK_DIM]; 
+            sum1 += AA[threadIdx.y][k] * BB[k][BLOCK_DIM + threadIdx.x]; 
+            sum2 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k][threadIdx.x]; 
+            sum3 += AA[threadIdx.y + BLOCK_DIM][k] * BB[k][threadIdx.x + BLOCK_DIM]; 
         }
+
+        // sync is needed before writing to AA & BB
         __syncthreads();
     }
+
+    // write the final dot products to C
     C[row * size + col] = sum0;
     C[row * size + col + BLOCK_DIM] = sum1;
-//    C[(row + BLOCK_DIM) * size + col] = sum2;
-//    C[(row + BLOCK_DIM) * size + col + BLOCK_DIM] = sum3;
+    C[(row + BLOCK_DIM) * size + col] = sum2;
+    C[(row + BLOCK_DIM) * size + col + BLOCK_DIM] = sum3;
+
 }
 
 // function to determine if the GPU computation is done correctly by comparing the output from the GPU with that
