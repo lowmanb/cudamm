@@ -118,8 +118,8 @@ void allocateAndInitializeAB() {
     size_t sizeofA = A_MD.dimension1 * A_MD.dimension2 * sizeof(float);
     A = (float*) malloc(sizeofA);
 
-    srand(5);
-    //srand(time(NULL));
+    //srand(5);
+    srand(time(NULL));
     for (int i = 0; i < A_MD.dimension1; i++) {
         for (int j = 0; j < A_MD.dimension2; j++) {
             int index = i * A_MD.dimension2 + j;
