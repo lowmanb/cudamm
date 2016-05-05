@@ -32,7 +32,7 @@ void die(const char *error);
 void check_error(cudaError e);
 
 //----------------------------------- CUDA function definitions -----------------------------------------
-#define THREADS_PER_BLOCK 20
+#define BLOCK_DIM 32
 clock_t start, end, mem_transfer, compute;
 
 //-------------------------------------------------------------------------------------------------------
@@ -44,6 +44,20 @@ int main(int argc, char **argv) {
     B_MD.dimension2 = (argc > 4) ? atoi(argv[4]) : B_MD.dimension1;
     C_MD.dimension1 = A_MD.dimension1;
     C_MD.dimension2 = B_MD.dimension2;
+
+    // pad dimensions to next multiple of 32
+    if (A_MD.dimension1 % BLOCK_DIM != 0)
+        A_MD.dimension1 = ((int)A_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (A_MD.dimension2 % BLOCK_DIM != 0)
+        A_MD.dimension2 = ((int)A_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM; 
+    if (B_MD.dimension1 % BLOCK_DIM != 0)
+        B_MD.dimension1 = ((int)B_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (B_MD.dimension2 % BLOCK_DIM != 0)
+        B_MD.dimension2 = ((int)B_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (C_MD.dimension1 % BLOCK_DIM != 0)
+        C_MD.dimension1 = ((int)C_MD.dimension1/BLOCK_DIM + 1) * BLOCK_DIM;
+    if (C_MD.dimension2 % BLOCK_DIM != 0)
+        C_MD.dimension2 = ((int)C_MD.dimension2/BLOCK_DIM + 1) * BLOCK_DIM;
 
     printf("Matrix A is %d-by-%d\n", A_MD.dimension1, A_MD.dimension2);
     printf("Matrix B is %d-by-%d\n", B_MD.dimension1, B_MD.dimension2);
@@ -64,8 +78,8 @@ int main(int argc, char **argv) {
     end = clock();
     mem_transfer = end - start;
 
-    dim3 blocks(A_MD.dimension1/THREADS_PER_BLOCK, A_MD.dimension1/THREADS_PER_BLOCK);
-    dim3 threads(THREADS_PER_BLOCK, THREADS_PER_BLOCK);
+    dim3 blocks(A_MD.dimension1/BLOCK_DIM, A_MD.dimension1/BLOCK_DIM);
+    dim3 threads(BLOCK_DIM, BLOCK_DIM);
 
     start = clock();
     computeGPUMMM<<<blocks, threads>>>(A_GPU, B_GPU, C_GPU, A_MD.dimension1);
