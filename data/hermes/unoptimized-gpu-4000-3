@@ -1,6 +1,0 @@
-Matrix A is 4000-by-4000
-Matrix B is 4000-by-4000
-Matrix C is 4000-by-4000
-Memory Transfer time in the GPU: 0.067619 seconds
-Computation time in the GPU: 2.552989 seconds
-Total time in the GPU: 2.620608 seconds
